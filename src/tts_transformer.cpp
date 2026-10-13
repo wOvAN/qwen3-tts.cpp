@@ -1,5 +1,6 @@
 #include "tts_transformer.h"
 #include "gguf_loader.h"
+#include "ggml-cpu.h"
 
 #include <cmath>
 #include <cstring>
@@ -47,6 +48,21 @@ void TTSTransformer::unload_model() {
     state_.compute_meta.clear();
     last_hidden_.clear();
     embd_row_fp16_scratch_.clear();
+}
+
+void TTSTransformer::set_n_threads(int32_t n_threads) {
+    if (n_threads <= 0) {
+        return;
+    }
+    if (state_.backend_cpu) {
+        ggml_backend_cpu_set_n_threads(state_.backend_cpu, n_threads);
+    }
+    if (state_.backend) {
+        ggml_backend_dev_t device = ggml_backend_get_device(state_.backend);
+        if (device && ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_CPU) {
+            ggml_backend_cpu_set_n_threads(state_.backend, n_threads);
+        }
+    }
 }
 
 bool TTSTransformer::load_model(const std::string & model_path) {
